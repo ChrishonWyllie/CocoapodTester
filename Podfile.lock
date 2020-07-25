@@ -1,0 +1,20 @@
+PODS:
+  - Celestial (0.8.36)
+  - ComposableDataSource (0.6.21)
+
+DEPENDENCIES:
+  - Celestial
+  - ComposableDataSource
+
+SPEC REPOS:
+  trunk:
+    - Celestial
+    - ComposableDataSource
+
+SPEC CHECKSUMS:
+  Celestial: 78a9100c327cdf1ca6be66f471cec73cdd9a8314
+  ComposableDataSource: 5100757826a3bd54e23385e6002016573bdce61f
+
+PODFILE CHECKSUM: de3031263c175c96b192dd4c30832f7efce15842
+
+COCOAPODS: 1.9.3

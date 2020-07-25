@@ -1,0 +1,3 @@
+${PODS_ROOT}/Target Support Files/Pods-CocoapodTester/Pods-CocoapodTester-frameworks.sh
+${BUILT_PRODUCTS_DIR}/Celestial/Celestial.framework
+${BUILT_PRODUCTS_DIR}/ComposableDataSource/ComposableDataSource.framework
