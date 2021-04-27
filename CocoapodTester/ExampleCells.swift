@@ -47,15 +47,6 @@ class ExampleCell: BaseComposableCollectionViewCell {
         return lbl
     }()
     
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        setupUIElements()
-    }
-    
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-    
     override func prepareForReuse() {
         super.prepareForReuse()
         progressView.progress = 0
