@@ -6,4 +6,12 @@
 //  Copyright © 2021 Chrishon Wyllie. All rights reserved.
 //
 
-import Foundation
+import CoreGraphics
+
+struct Constants {
+    private init() {}
+    
+    static let progressLabelHeight: CGFloat = 40
+    static let horizontalPadding: CGFloat = 8
+    static let verticalPadding: CGFloat = 12.0
+}
