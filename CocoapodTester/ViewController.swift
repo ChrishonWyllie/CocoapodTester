@@ -42,7 +42,13 @@ class ViewController: UIViewController {
     
     // MARK: - UI Elements
     
-    private var collectionView: UICollectionView = {
+    private lazy var refreshControl: UIRefreshControl = {
+        let rc = UIRefreshControl()
+        rc.addTarget(self, action: #selector(reloadVideos), for: .valueChanged)
+        return rc
+    }()
+    
+    private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
         layout.minimumLineSpacing = 0
         layout.minimumInteritemSpacing = 0
@@ -58,6 +64,7 @@ class ViewController: UIViewController {
         }
         collectionView.allowsSelection = true
         collectionView.alwaysBounceVertical = true
+        collectionView.refreshControl = refreshControl
         return collectionView
     }()
     
@@ -163,6 +170,16 @@ extension ViewController {
         
     }
     
+    @objc private func reloadVideos() {
+        let models: [[BaseCollectionCellModel]] = [videoCellModels]
+        let supplementaryModels: [BaseSupplementarySectionModel] = [BaseSupplementarySectionModel(header: HeaderItemModel(title: "Videos"), footer: nil)]
+        dataSource?.replaceDataSource(withCellItems: models, supplementarySectionItems: supplementaryModels, updateStyle: .immediately, completion: { [weak self] (_) in
+            DispatchQueue.main.async {
+                self?.refreshControl.endRefreshing()
+            }
+        })
+    }
+    
     @objc private func updateItems() {
         let randomNumber = Int.random(in: 0...1)
         let section: Int = 0
@@ -179,6 +196,7 @@ extension ViewController {
     }
     
     @objc private func deleteItems() {
+        Celestial.shared.clearAllVideos()
         dataSource?.deleteSections(atSectionIndices: [0], completion: nil)
     }
     

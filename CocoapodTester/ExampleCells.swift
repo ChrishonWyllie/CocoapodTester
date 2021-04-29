@@ -11,14 +11,6 @@ import ComposableDataSource
 import Celestial
 import AVFoundation
 
-struct Constants {
-    private init() {}
-    
-    static let progressLabelHeight: CGFloat = 40
-    static let horizontalPadding: CGFloat = 8
-    static let verticalPadding: CGFloat = 12.0
-}
-
 class ExampleCell: BaseComposableCollectionViewCell {
     
     override func configure(with item: BaseCollectionCellModel, at indexPath: IndexPath) {
@@ -54,6 +46,7 @@ class ExampleCell: BaseComposableCollectionViewCell {
     }
     
     override func setupUIElements() {
+        // Override the layout constraints
 //        super.setupUIElements()
         
         contentView.addSubview(containerView)
@@ -122,7 +115,7 @@ class ExampleCell: BaseComposableCollectionViewCell {
 
 // MARK: - VideoCell
 
-protocol VideoCellDelegate: class {
+protocol VideoCellDelegate: AnyObject {
     func videoCell(_ cell: VideoCell, requestsContainerSizeChanges requiredSize: CGSize)
 }
 class VideoCell: ExampleCell {
@@ -135,23 +128,28 @@ class VideoCell: ExampleCell {
 
         let urlString = item.urlString
         
-        let url = URL(string: urlString)!
-        if Celestial.shared.videoExists(for: url, cacheLocation: .fileSystem) {
-            titleLabel.text = "Video has been previously cached!"
-        }
-        
         playerView.loadVideoFrom(urlString: urlString)
-        playerView.generateThumbnailImage(shouldCacheInMemory: true, completion: { (image) in
-            print("Generated thumbnail image: \(String(describing: image))")
-        })
+//        playerView.generateThumbnailImage(shouldCacheInMemory: true, completion: { [weak self] (image) in
+//            print("Generated thumbnail image: \(String(describing: image))")
+//            DispatchQueue.main.async {
+//                self?.thumbnailImageView.image = image
+//            }
+//        })
     }
     
     public lazy var playerView: URLVideoPlayerView = {
         let v = URLVideoPlayerView(delegate: self, cacheLocation: .fileSystem)
         v.translatesAutoresizingMaskIntoConstraints = false
-//        v.playerLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
 //        v.isMuted = true
         return v
+    }()
+    
+    private var thumbnailImageView: UIImageView = {
+        let img = UIImageView()
+        img.translatesAutoresizingMaskIntoConstraints = false
+        img.contentMode = .scaleAspectFit
+        img.backgroundColor = .purple
+        return img
     }()
     
     private lazy var playButton: UIButton = {
@@ -171,6 +169,7 @@ class VideoCell: ExampleCell {
     override func prepareForReuse() {
         super.prepareForReuse()
         playerView.reset()
+        thumbnailImageView.image = nil
     }
     
     override func setupUIElements() {
@@ -180,13 +179,20 @@ class VideoCell: ExampleCell {
             super.containerView.addSubview(subview)
         }
         
+//        playerView.addSubview(thumbnailImageView)
+        
         playerView.backgroundColor = [UIColor.red, .orange, .yellow, .green, .blue].randomElement()
         
         // Handle layout...
         playerView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: 0).isActive = true
-        playerView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: Constants.verticalPadding).isActive = true
+        playerView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: 0).isActive = true
         playerView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: 0).isActive = true
         playerView.bottomAnchor.constraint(equalTo: super.titleLabel.topAnchor, constant: -Constants.verticalPadding).isActive = true
+        
+//        thumbnailImageView.leadingAnchor.constraint(equalTo: playerView.leadingAnchor).isActive = true
+//        thumbnailImageView.topAnchor.constraint(equalTo: playerView.topAnchor).isActive = true
+//        thumbnailImageView.trailingAnchor.constraint(equalTo: playerView.trailingAnchor).isActive = true
+//        thumbnailImageView.bottomAnchor.constraint(equalTo: playerView.bottomAnchor).isActive = true
         
         playButton.trailingAnchor.constraint(equalTo: playerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
         playButton.bottomAnchor.constraint(equalTo: playerView.bottomAnchor, constant: -Constants.verticalPadding).isActive = true
@@ -196,22 +202,25 @@ class VideoCell: ExampleCell {
     
     @objc private func togglePlaying() {
         let shouldBeginPlaying: Bool = playerView.isPlaying == false
-        shouldBeginPlaying ? playerView.play() : playerView.pause()
+        
         if shouldBeginPlaying {
+            thumbnailImageView.isHidden = true
+            playerView.play()
             playerView.loop(didReachEnd: {
                 print("Did reach end, looping")
             })
         } else {
+            playerView.pause()
             playerView.stopLooping()
         }
-        let newPlayButtonTitle = shouldBeginPlaying ? "Play" : "Pause"
+        let newPlayButtonTitle = shouldBeginPlaying ? "Pause" : "Play"
         playButton.setTitle(newPlayButtonTitle, for: UIControl.State.normal)
     }
     
     public func getTotalVerticalPadding() -> CGFloat {
         // The total number vertical padding in between the UI elements.
         // NOTE: This is a hardcoded value for this particular cell.
-        return Constants.verticalPadding * 7
+        return Constants.verticalPadding * 6
     }
 }
 
