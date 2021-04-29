@@ -10,7 +10,8 @@ import UIKit
 import ComposableDataSource
 import Celestial
 import AVFoundation
-class TestCollectionCell: BaseComposableCollectionViewCell {
+
+class ExampleCell: BaseComposableCollectionViewCell {
     
     override func configure(with item: BaseCollectionCellModel, at indexPath: IndexPath) {
         guard let item = item as? URLCellModel else { fatalError() }
@@ -34,14 +35,21 @@ class TestCollectionCell: BaseComposableCollectionViewCell {
         let lbl = UILabel()
         lbl.translatesAutoresizingMaskIntoConstraints = false
         lbl.numberOfLines = 0
+        lbl.font = UIFont.systemFont(ofSize: 17)
         return lbl
     }()
     
-    
-    
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        progressView.progress = 0
+        progressLabel.text = ""
+    }
     
     override func setupUIElements() {
-        super.setupUIElements()
+        // Override the layout constraints
+//        super.setupUIElements()
+        
+        contentView.addSubview(containerView)
         
         [titleLabel, progressLabel, progressView].forEach { (subview) in
             super.containerView.addSubview(subview)
@@ -49,20 +57,27 @@ class TestCollectionCell: BaseComposableCollectionViewCell {
         
         // Handle layout...
         
-        let padding: CGFloat = 12.0
+        super.containerView.backgroundColor = .white
+        super.containerView.layer.cornerRadius = 10
+        super.containerView.clipsToBounds = true
         
-        titleLabel.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: padding).isActive = true
-        titleLabel.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -padding).isActive = true
-        titleLabel.bottomAnchor.constraint(equalTo: progressLabel.topAnchor, constant: -padding).isActive = true
+        containerView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: Constants.horizontalPadding).isActive = true
+        containerView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: Constants.verticalPadding).isActive = true
+        containerView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        containerView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -Constants.verticalPadding).isActive = true
         
-        progressLabel.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: padding).isActive = true
-        progressLabel.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -padding).isActive = true
-        progressLabel.bottomAnchor.constraint(equalTo: progressView.topAnchor, constant: -padding).isActive = true
-        progressLabel.heightAnchor.constraint(equalToConstant: 40).isActive = true
+        titleLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: Constants.horizontalPadding).isActive = true
+        titleLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        titleLabel.bottomAnchor.constraint(equalTo: progressLabel.topAnchor, constant: -Constants.verticalPadding).isActive = true
         
-        progressView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: padding).isActive = true
-        progressView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -padding).isActive = true
-        progressView.bottomAnchor.constraint(equalTo: super.containerView.bottomAnchor, constant: -padding).isActive = true
+        progressLabel.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: Constants.horizontalPadding).isActive = true
+        progressLabel.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        progressLabel.bottomAnchor.constraint(equalTo: progressView.topAnchor, constant: -Constants.verticalPadding).isActive = true
+        progressLabel.heightAnchor.constraint(equalToConstant: Constants.progressLabelHeight).isActive = true
+        
+        progressView.leadingAnchor.constraint(equalTo: containerView.leadingAnchor, constant: Constants.horizontalPadding).isActive = true
+        progressView.trailingAnchor.constraint(equalTo: containerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        progressView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor, constant: -Constants.verticalPadding).isActive = true
     }
     
     func updateCompletion() {
@@ -100,107 +115,137 @@ class TestCollectionCell: BaseComposableCollectionViewCell {
 
 // MARK: - VideoCell
 
-class VideoCell: TestCollectionCell {
+protocol VideoCellDelegate: AnyObject {
+    func videoCell(_ cell: VideoCell, requestsContainerSizeChanges requiredSize: CGSize)
+}
+class VideoCell: ExampleCell {
+    
+    public weak var delegate: VideoCellDelegate?
     
     override func configure(with item: BaseCollectionCellModel, at indexPath: IndexPath) {
         super.configure(with: item, at: indexPath)
         guard let item = item as? VideoCellModel else { fatalError() }
-        
+
         let urlString = item.urlString
-        playerView.loadVideoFrom(urlString: urlString)
-                
-//        playerView.loadVideoFrom(urlString: someCellModel.urlString, progressHandler: { (progress) in
-//            print("current downlod progress: \(progress)")
-//            self.updateProgress(progress, humanReadableProgress: "Not sure")
-//        }, completion: {
-//            print("Image has finished loading")
-//            self.updateCompletion()
-//        }) { (error) in
-//            print("Error loading image")
-//            self.updateError()
-//        }
         
-        if playtimeObserver != nil {
-            NotificationCenter.default.removeObserver(playtimeObserver!)
-            playtimeObserver = nil
-        }
+        playerView.loadVideoFrom(urlString: urlString)
+//        playerView.generateThumbnailImage(shouldCacheInMemory: true, completion: { [weak self] (image) in
+//            print("Generated thumbnail image: \(String(describing: image))")
+//            DispatchQueue.main.async {
+//                self?.thumbnailImageView.image = image
+//            }
+//        })
     }
     
     public lazy var playerView: URLVideoPlayerView = {
         let v = URLVideoPlayerView(delegate: self, cacheLocation: .fileSystem)
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.playerLayer.videoGravity = AVLayerVideoGravity.resizeAspectFill
 //        v.isMuted = true
         return v
     }()
     
+    private var thumbnailImageView: UIImageView = {
+        let img = UIImageView()
+        img.translatesAutoresizingMaskIntoConstraints = false
+        img.contentMode = .scaleAspectFit
+        img.backgroundColor = .purple
+        return img
+    }()
     
+    private lazy var playButton: UIButton = {
+        let btn = UIButton()
+        btn.translatesAutoresizingMaskIntoConstraints = false
+        btn.setTitle("Play", for: .normal)
+        btn.backgroundColor = UIColor.white
+        btn.clipsToBounds = true
+        btn.layer.cornerRadius = 10
+        btn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 20)
+        btn.setTitleColor(UIColor.blue, for: UIControl.State.normal)
+        btn.addTarget(self, action: #selector(togglePlaying), for: UIControl.Event.touchUpInside)
+        return btn
+    }()
     
     
     override func prepareForReuse() {
         super.prepareForReuse()
         playerView.reset()
-        resetLoopObserver()
+        thumbnailImageView.image = nil
     }
     
     override func setupUIElements() {
         super.setupUIElements()
         
-        [playerView].forEach { (subview) in
-            containerView.addSubview(subview)
+        [playerView, playButton].forEach { (subview) in
+            super.containerView.addSubview(subview)
         }
         
-        let padding: CGFloat = 12
+//        playerView.addSubview(thumbnailImageView)
+        
+        playerView.backgroundColor = [UIColor.red, .orange, .yellow, .green, .blue].randomElement()
         
         // Handle layout...
-        playerView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: padding).isActive = true
-        playerView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: padding).isActive = true
-        playerView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -padding).isActive = true
-        playerView.bottomAnchor.constraint(equalTo: super.titleLabel.topAnchor, constant: -padding).isActive = true
+        playerView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: 0).isActive = true
+        playerView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: 0).isActive = true
+        playerView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: 0).isActive = true
+        playerView.bottomAnchor.constraint(equalTo: super.titleLabel.topAnchor, constant: -Constants.verticalPadding).isActive = true
+        
+//        thumbnailImageView.leadingAnchor.constraint(equalTo: playerView.leadingAnchor).isActive = true
+//        thumbnailImageView.topAnchor.constraint(equalTo: playerView.topAnchor).isActive = true
+//        thumbnailImageView.trailingAnchor.constraint(equalTo: playerView.trailingAnchor).isActive = true
+//        thumbnailImageView.bottomAnchor.constraint(equalTo: playerView.bottomAnchor).isActive = true
+        
+        playButton.trailingAnchor.constraint(equalTo: playerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        playButton.bottomAnchor.constraint(equalTo: playerView.bottomAnchor, constant: -Constants.verticalPadding).isActive = true
+        playButton.widthAnchor.constraint(equalToConstant: 80).isActive = true
         
     }
     
-    
-    private weak var playtimeObserver: NSObjectProtocol?
-
-    private func observeDidPlayToEndTime() {
+    @objc private func togglePlaying() {
+        let shouldBeginPlaying: Bool = playerView.isPlaying == false
         
-        let playerItem = (playerView.player!.currentItem)
-        
-        NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime,
-                                                                  object: playerItem,
-                                                                  queue: .main,
-                                                                  using: { [weak self] (notification) in
-            guard let strongSelf = self else { return }
-            strongSelf.playerView.player!.seek(to: CMTime.zero)
-            strongSelf.playerView.player!.play()
-        })
-    }
-    
-    private func resetLoopObserver() {
-        if playtimeObserver != nil {
-            NotificationCenter.default.removeObserver(playtimeObserver!)
-            playtimeObserver = nil
+        if shouldBeginPlaying {
+            thumbnailImageView.isHidden = true
+            playerView.play()
+            playerView.loop(didReachEnd: {
+                print("Did reach end, looping")
+            })
+        } else {
+            playerView.pause()
+            playerView.stopLooping()
         }
+        let newPlayButtonTitle = shouldBeginPlaying ? "Pause" : "Play"
+        playButton.setTitle(newPlayButtonTitle, for: UIControl.State.normal)
     }
     
+    public func getTotalVerticalPadding() -> CGFloat {
+        // The total number vertical padding in between the UI elements.
+        // NOTE: This is a hardcoded value for this particular cell.
+        return Constants.verticalPadding * 6
+    }
 }
 
 extension VideoCell: URLVideoPlayerViewDelegate {
     
     func urlVideoPlayerIsReadyToPlay(_ view: URLVideoPlayerView) {
-        view.play()
-        observeDidPlayToEndTime()
+        print("\n")
+        print("Self frame: \(self.frame)")
+        print("Self containerView frame: \(self.containerView.frame)")
+        
+        if self.playerView.frame != .zero {
+            let playerViewWidth: CGFloat = self.playerView.frame.width
+            let requiredSize = view.requiredSizeFor(width: playerViewWidth)
+            delegate?.videoCell(self, requestsContainerSizeChanges: requiredSize)
+        }
     }
-   
+    
     func urlCachableView(_ view: URLCachableView, didFinishDownloading media: Any) {
         super.updateCompletion()
     }
-  
+   
     func urlCachableView(_ view: URLCachableView, downloadFailedWith error: Error) {
         super.updateError()
     }
-  
+   
     func urlCachableView(_ view: URLCachableView, downloadProgress progress: Float, humanReadableProgress: String) {
         super.updateProgress(progress, humanReadableProgress: humanReadableProgress)
     }
@@ -233,15 +278,15 @@ extension VideoCell: URLVideoPlayerViewDelegate {
 
 // MARK: - ImageCell
 
-class ImageCell: TestCollectionCell {
+class ImageCell: ExampleCell {
     
     override func configure(with item: BaseCollectionCellModel, at indexPath: IndexPath) {
         super.configure(with: item, at: indexPath)
-        
+
         guard let item = item as? ImageCellModel else { fatalError() }
-        
+
 //        imageView.loadImageFrom(urlString: someCellModel.urlString)
-        
+
         imageView.loadImageFrom(urlString: item.urlString, progressHandler: { (progress) in
             print("current downlod progress: \(progress)")
             self.updateProgress(progress, humanReadableProgress: "Not sure")
@@ -274,27 +319,25 @@ class ImageCell: TestCollectionCell {
             containerView.addSubview(subview)
         }
         
-        let padding: CGFloat = 12
-        
         // Handle layout...
-        imageView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: padding).isActive = true
-        imageView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: padding).isActive = true
-        imageView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -padding).isActive = true
-        imageView.bottomAnchor.constraint(equalTo: super.titleLabel.topAnchor, constant: -padding).isActive = true
+        imageView.leadingAnchor.constraint(equalTo: super.containerView.leadingAnchor, constant: Constants.horizontalPadding).isActive = true
+        imageView.topAnchor.constraint(equalTo: super.containerView.topAnchor, constant: Constants.verticalPadding).isActive = true
+        imageView.trailingAnchor.constraint(equalTo: super.containerView.trailingAnchor, constant: -Constants.horizontalPadding).isActive = true
+        imageView.bottomAnchor.constraint(equalTo: super.titleLabel.topAnchor, constant: -Constants.verticalPadding).isActive = true
     }
 }
 
 extension ImageCell: URLCachableViewDelegate {
     
     func urlCachableView(_ view: URLCachableView, didFinishDownloading media: Any) {
-        updateCompletion()
+//        updateCompletion()
     }
     
     func urlCachableView(_ view: URLCachableView, downloadFailedWith error: Error) {
-        updateError()
+//        updateError()
     }
     
     func urlCachableView(_ view: URLCachableView, downloadProgress progress: Float, humanReadableProgress: String) {
-        updateProgress(progress, humanReadableProgress: humanReadableProgress)
+//        updateProgress(progress, humanReadableProgress: humanReadableProgress)
     }
 }

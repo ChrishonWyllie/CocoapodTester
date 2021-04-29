@@ -22,14 +22,15 @@ class ViewController: UIViewController {
     
     private var videoCellModels: [BaseCollectionCellModel] {
         let urlStrings: [String] = [
+            "https://d21m91m763fb64.cloudfront.net/videos/8acab1c0-7cb0-11eb-821a-9b4798e5df00-8secondz-video.mp4",
            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
            "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
-           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
+//           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+//           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+//           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4",
+//           "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4"
        ]
        
        return urlStrings.map { VideoCellModel(urlString: $0) }
@@ -41,17 +42,29 @@ class ViewController: UIViewController {
     
     // MARK: - UI Elements
     
-    private var collectionView: UICollectionView = {
+    private lazy var refreshControl: UIRefreshControl = {
+        let rc = UIRefreshControl()
+        rc.addTarget(self, action: #selector(reloadVideos), for: .valueChanged)
+        return rc
+    }()
+    
+    private lazy var collectionView: UICollectionView = {
         let layout = UICollectionViewFlowLayout()
-        layout.minimumLineSpacing = 1
-        layout.minimumInteritemSpacing = 1
+        layout.minimumLineSpacing = 0
+        layout.minimumInteritemSpacing = 0
         layout.scrollDirection = .vertical
         
         let collectionView = UICollectionView(frame: .zero, collectionViewLayout: layout)
         collectionView.translatesAutoresizingMaskIntoConstraints = false
-        collectionView.backgroundColor = .white
+        if #available(iOS 13.0, *) {
+            collectionView.backgroundColor = UIColor.systemGray3
+        } else {
+            // Fallback on earlier versions
+            collectionView.backgroundColor = .gray
+        }
         collectionView.allowsSelection = true
         collectionView.alwaysBounceVertical = true
+        collectionView.refreshControl = refreshControl
         return collectionView
     }()
     
@@ -85,7 +98,7 @@ class ViewController: UIViewController {
         setupCollectionView()
         dataSource = setupDataSource()
         
-        fetchData()
+//        fetchImagesData()
     }
 
     override func didReceiveMemoryWarning() {
@@ -114,17 +127,17 @@ extension ViewController {
 
     private func setupDataSource() -> ComposableCollectionDataSource {
             
-        let models: [[BaseCollectionCellModel]] = [[]]
-        let supplementaryModels: [GenericSupplementarySectionModel] = []
+//        let models: [[BaseCollectionCellModel]] = [[]]
+//        let supplementaryModels: [GenericSupplementarySectionModel] = []
+        let models: [[BaseCollectionCellModel]] = [videoCellModels]
+        let supplementaryModels: [BaseSupplementarySectionModel] = [BaseSupplementarySectionModel(header: HeaderItemModel(title: "Videos"), footer: nil)]
         
-        let dataSource = ComposableCollectionDataSource(collectionView: collectionView,
+        let dataSource = CustomComposableDataSource(collectionView: collectionView,
                                                         cellItems: models,
                                                         supplementarySectionItems: supplementaryModels)
         .didSelectItem { (indexPath: IndexPath, model: BaseCollectionCellModel) in
             print("selected model: \(model) at indexPath: \(indexPath)")
-        }.sizeForItem { [unowned self] (indexPath: IndexPath, model: BaseCollectionCellModel) -> CGSize in
-            return CGSize.init(width: self.collectionView.frame.size.width, height: 400.0)
-        }.referenceSizeForHeader { [unowned self] (section: Int, model: BaseComposableSupplementaryViewModel) -> CGSize in
+        }.referenceSizeForHeader{ (section: Int, supplementaryViewModel: BaseCollectionSupplementaryViewModel) -> CGSize in
             return CGSize.init(width: self.collectionView.frame.size.width, height: 60.0)
         }.prefetchItems { (indexPaths: [IndexPath], models: [BaseCollectionCellModel]) in
             let models = models as! [URLCellModel]
@@ -150,11 +163,21 @@ extension ViewController {
 extension ViewController {
     
     @objc private func addItems() {
-        let headerModel = HeaderItemModel(title: "Videos")
-        let supplementarySectionItem = GenericSupplementarySectionModel(header: headerModel, footer: nil)
+//        let headerModel = HeaderItemModel(title: "Videos")
+//        let supplementarySectionItem = GenericSupplementarySectionModel(header: headerModel, footer: nil)
+//
+//        dataSource?.insertNewSection(withCellItems: videoCellModels, supplementarySectionItem: supplementarySectionItem, atSection: 0, completion: nil)
         
-        dataSource?.insertNewSection(withCellItems: videoCellModels, supplementarySectionItem: supplementarySectionItem, atSection: 0, completion: nil)
-        
+    }
+    
+    @objc private func reloadVideos() {
+        let models: [[BaseCollectionCellModel]] = [videoCellModels]
+        let supplementaryModels: [BaseSupplementarySectionModel] = [BaseSupplementarySectionModel(header: HeaderItemModel(title: "Videos"), footer: nil)]
+        dataSource?.replaceDataSource(withCellItems: models, supplementarySectionItems: supplementaryModels, updateStyle: .immediately, completion: { [weak self] (_) in
+            DispatchQueue.main.async {
+                self?.refreshControl.endRefreshing()
+            }
+        })
     }
     
     @objc private func updateItems() {
@@ -162,7 +185,7 @@ extension ViewController {
         let section: Int = 0
         let headerTitle: String = randomNumber == 0 ? imagesURLString : "Videos"
         let headerModel = HeaderItemModel(title: headerTitle)
-        let supplementarySectionItem = GenericSupplementarySectionModel(header: headerModel, footer: nil)
+        let supplementarySectionItem = BaseSupplementarySectionModel(header: headerModel, footer: nil)
         let models: [BaseCollectionCellModel] = randomNumber == 0 ? imageCellModels : videoCellModels
 
         dataSource?.updateSections(atItemSectionIndices: [section],
@@ -173,16 +196,17 @@ extension ViewController {
     }
     
     @objc private func deleteItems() {
+        Celestial.shared.clearAllVideos()
         dataSource?.deleteSections(atSectionIndices: [0], completion: nil)
     }
     
-    private func fetchData() {
+    private func fetchImagesData() {
         
         guard let url = URL(string: imagesURLString) else {
             return
         }
         
-        var supplementaryModels: [GenericSupplementarySectionModel] = []
+        var supplementaryModels: [BaseSupplementarySectionModel] = []
         
         let group = DispatchGroup()
         
@@ -191,7 +215,7 @@ extension ViewController {
         URLSession.shared.dataTask(with: url) { [weak self] (data, response, error) in
             
             let headerModel = HeaderItemModel(title: self?.imagesURLString ?? "Images")
-            let containerModel = GenericSupplementarySectionModel(header: headerModel, footer: nil)
+            let containerModel = BaseSupplementarySectionModel(header: headerModel, footer: nil)
             supplementaryModels.append(containerModel)
             
             guard let data = data else { return }
@@ -237,5 +261,107 @@ fileprivate struct URLSessionObject {
         id = object["id"] as? NSNumber ?? 0
         url = object["url"] as? String ?? ""
         width = object["width"] as? NSNumber ?? 0
+    }
+}
+
+
+class CustomComposableDataSource: ComposableCollectionDataSource, VideoCellDelegate {
+    
+    private var cellSizes:  [IndexPath: CGSize] = [:]
+    
+    override func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
+        let cell = super.collectionView(collectionView, cellForItemAt: indexPath)
+        (cell as? VideoCell)?.delegate = self
+        return cell
+    }
+    
+    override func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+        
+        if let calculatedSize = cellSizes[indexPath] {
+            return calculatedSize
+        }
+        // Otherwise, use a default size
+        return CGSize(width: getNonDynamicCellWidth(), height: 400.0)
+    }
+    
+    func videoCell(_ cell: VideoCell, requestsContainerSizeChanges requiredSize: CGSize) {
+        let indexPath: IndexPath
+        
+        if let indexPathForCell = collectionView.indexPath(for: cell) {
+            indexPath = indexPathForCell
+        } else {
+            // The UICollectionView cannot reach this cell, as it may not have been dequeued yet (or it has been recycled)
+            let urlString = cell.playerView.sourceURL?.absoluteString
+            let section: Int = 0
+            guard let cellModels = self.cellModels(inSection: section) as? [VideoCellModel] else {
+                print("Cell models: \(self.cellModels(inSection: section))")
+                return
+            }
+            guard let arrayElementIndex = cellModels.firstIndex(where: { $0.urlString == urlString }) else {
+                // This is virtually guaranteed since there must exist a cellModel where its urlString
+                // is the same as the one that this VideoCell's playerView is using.
+                return
+            }
+            let index = Int(arrayElementIndex)
+            indexPath = IndexPath(item: index, section: section)
+        }
+        
+        updateSize(forCell: cell, withVideoSize: requiredSize, atIndexPath: indexPath)
+    }
+    
+    private func updateSize(forCell cell: VideoCell, withVideoSize videoSize: CGSize, atIndexPath indexPath: IndexPath) {
+        let cellModels = self.cellModels(inSection: 0) as! [VideoCellModel]
+        let cellModel = cellModels[indexPath.item]
+        
+        // NOTE
+        
+        let totalWidthOfTitleLabel: CGFloat = getNonDynamicCellWidth() - (Constants.horizontalPadding * 4)
+        let urlStringTextFrame: CGRect = cellModel.urlString.estimateFrameForText(with: UIFont.systemFont(ofSize: 17),
+                                                                                  desiredTextWidth: totalWidthOfTitleLabel)
+        let titleLabelHeight: CGFloat = urlStringTextFrame.height
+        
+        let progressLabelHeight: CGFloat = Constants.progressLabelHeight
+        let progressBarHeight: CGFloat = 4 // this is the default height for a UIProgressBar
+        let totalVerticalPadding: CGFloat = cell.getTotalVerticalPadding()
+        
+        let calculatedHeight =  videoSize.height    +
+                                titleLabelHeight    +
+                                progressLabelHeight +
+                                progressBarHeight   +
+                                totalVerticalPadding
+        
+        let calculatedSize = CGSize(width: getNonDynamicCellWidth(), height: calculatedHeight)
+        
+        if cellSizes[indexPath] != nil {
+            return
+        }
+        
+        cellSizes[indexPath] = calculatedSize
+        
+        // Animate the cell size change
+        collectionView.performBatchUpdates({
+            collectionView.collectionViewLayout.invalidateLayout()
+        }, completion: nil)
+    }
+    
+    
+    private func getNonDynamicCellWidth() -> CGFloat {
+        return collectionView.frame.size.width
+    }
+}
+
+
+extension String {
+    func estimateFrameForText(with font: UIFont, desiredTextWidth: CGFloat? = nil) -> CGRect {
+        let someArbitraryWidthValue: CGFloat = 200
+        let size = CGSize(width: desiredTextWidth ?? someArbitraryWidthValue, height: 1000)
+        let options = NSStringDrawingOptions
+            .usesFontLeading
+            .union(.usesLineFragmentOrigin)
+        return NSString(string: self)
+            .boundingRect(with: size,
+                          options: options,
+                          attributes: [NSAttributedString.Key.font: font],
+                          context: nil)
     }
 }
